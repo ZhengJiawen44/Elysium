@@ -1,7 +1,8 @@
 # Elysium
-minimalistic desktop config
+minimalist desktop config
 
+https://github.com/user-attachments/assets/0a204f52-7e73-4244-b0c5-c447b81db646
 
-https://github.com/user-attachments/assets/364a0b29-e03c-421c-ba22-5907edf19d2e
-
-
+### Easy to miss programs:
+- screen shot: grimblast
+- color picker: hyprpicker
