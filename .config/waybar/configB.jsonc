@@ -1,0 +1,186 @@
+
+// -*- mode: jsonc -*-
+{
+     "layer": "top", // Waybar at top layer
+   // "exclusive":false, 
+    "position": "top", // Waybar position (top|bottom|left|right)
+    "height": "40", // Waybar height (to be removed for auto height)
+    // "width": 1000, // Waybar width
+    "spacing": 20, // Gaps between modules (4px)
+    "margin-top": 5,
+    "margin-bottom":-10,
+    "margin-left": 150,
+    "margin-right": 150,
+    // Choose the order of the modules
+    "modules-left": [
+	"custom/lframe",
+        "hyprland/workspaces",
+	"custom/rframe"
+    ],
+    "modules-right": [
+        // "mpd",
+	//"idle_inhibitor",
+        "pulseaudio",
+	"network",
+        //"cpu",
+        //"memory",
+        //"temperature",
+        "hyprland/language",
+        "clock",
+        "tray",
+	"custom/power"
+    ],
+    // Modules configuration
+     "hyprland/workspaces": {
+	"disable-scroll": true,
+        "all-outputs": true,
+        "warp-on-scroll": false,
+       	"format": "{icon}",
+	"format-icons": {
+	"1": "1",
+    	"2": "2",
+    	"3": "3",
+    	"4": "4",
+	"5": "5",
+	"6": "6",
+	"urgent": "",
+        "focused": "",
+	"default": ""
+         }
+     },
+     
+    "hyprland/scratchpad": {
+        "format": "{icon} {count}",
+        "show-empty": false,
+        "format-icons": ["", ""],
+        "tooltip": true,
+        "tooltip-format": "{app}: {title}"
+    },
+    "mpd": {
+        "format": "{stateIcon} {consumeIcon}{randomIcon}{repeatIcon}{singleIcon}{artist} - {album} - {title} ({elapsedTime:%M:%S}/{totalTime:%M:%S}) ⸨{songPosition}|{queueLength}⸩ {volume}% ",
+        "format-disconnected": "Disconnected ",
+        "format-stopped": "{consumeIcon}{randomIcon}{repeatIcon}{singleIcon}Stopped ",
+        "unknown-tag": "N/A",
+        "interval": 5,
+        "consume-icons": {
+            "on": " "
+        },
+        "random-icons": {
+            "off": "<span color=\"#f53c3c\"></span> ",
+            "on": " "
+        },
+        "repeat-icons": {
+            "on": " "
+        },
+        "single-icons": {
+            "on": "1 "
+        },
+        "state-icons": {
+            "paused": "",
+            "playing": ""
+        },
+        "tooltip-format": "MPD (connected)",
+        "tooltip-format-disconnected": "MPD (disconnected)"
+    },
+    "idle_inhibitor": {
+        "format": "{icon}",
+        "format-icons": {
+            "activated": "",
+            "deactivated": ""
+        }
+    },
+    "tray": {
+         "icon-size": 21,
+        "spacing": 10,
+         "icons": {
+           "blueman": "bluetooth",
+           "TelegramDesktop": "$HOME/.local/share/icons/hicolor/16x16/apps/telegram.png"
+         }
+    },
+    "clock": {
+        // "timezone": "America/New_York",
+        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+        "format-alt": "{:%Y-%m-%d}"
+    },
+    "cpu": {
+        "format": "{usage}% ",
+        "tooltip": false
+    },
+    "memory": {
+        "format": "{}% "
+    },
+    "temperature": {
+        // "thermal-zone": 2,
+        "critical-threshold": 80,
+        "format": "{temperatureC}°C {icon}",
+        "format-icons": [ ""]
+    },
+    "network": {
+        // "interface": "wlp2*", // (Optional) To force the use of this interface
+        "format-wifi": "{essid} ({signalStrength}%) ",
+        "format-ethernet": "{ipaddr}/{cidr} ",
+        "tooltip-format": "{ifname} via {gwaddr} ",
+        "format-linked": "{ifname} (No IP) ",
+        "format-disconnected": "Disconnected ⚠",
+        "format-alt": "{ifname}: {ipaddr}/{cidr}"
+    },
+    "pulseaudio": {
+        // "scroll-step": 1, // %, can be a float
+        "format": "{volume}% {icon} {format_source}",
+        "format-bluetooth": "{volume}% {icon} {format_source}",
+        "format-bluetooth-muted": " {icon} {format_source}",
+        "format-muted": " {format_source}",
+        "format-source": "{volume}% ",
+        "format-source-muted": "",
+        "format-icons": {
+            "headphone": "",
+            "hands-free": "",
+            "headset": "",
+            "phone": "",
+            "portable": "",
+            "car": "",
+            "default": ["", "", ""]
+        },
+        "on-click": "pavucontrol"
+    },
+    /// MEDIA PLAYERS (TEST) ///
+    "custom/now-playing": {
+    "format": "{}",
+    "interval": 2,
+    "exec": "~/.config/waybar/scripts/now-playing.sh",
+    "return-type": "text",
+    "on-click": "playerctl play-pause",
+    "on-scroll-up": "playerctl next",
+    "on-scroll-down": "playerctl previous"
+    },
+
+    "custom/lframe": {
+	"format": "["
+    },
+    "custom/rframe": {
+	"format": "]"
+    },
+	
+
+    "custom/playerctl": {
+      "format": "{}",
+      "return-type": "json",
+      "max-length": 18,
+      "exec": "~/.config/waybar/scripts/playerctl_scroll.sh",
+      "on-click": "playerctl -i firefox previous",
+      "on-click-right": "playerctl -i firefox next",
+      "on-click-middle": "playerctl -i firefox play-pause",
+      "on-scroll-up": "playerctl -i firefox volume 0.05+",
+      "on-scroll-down": "playerctl -i firefox volume 0.05-"
+    },
+
+   "custom/power": {
+	"format": "⏻",
+	"exec": "echo ; echo 󰟡 power // blur",
+	"on-click": "~/.config/hypr/scripts/Wlogout.sh",
+	"interval": 86400, // once every day
+	"tooltip": true
+   } 
+   }
+
+

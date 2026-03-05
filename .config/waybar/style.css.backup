@@ -1,0 +1,19 @@
+/* Base appearance for all workspace buttons */
+#workspaces button {
+    padding: 0 6px;
+    font-family: "Noto Emoji", "Segoe UI Symbol", "Symbola", sans-serif;
+    font-weight: normal;    /* normal weight for inactive workspaces */
+    background: transparent;
+    border-radius: 8px;
+}
+
+/* Make the active workspace number bold (and optionally change colour) */
+#workspaces button.active {
+    font-weight: bold;      /* bold text for active workspace */
+    color: #00ff00;         /* optional: pick your own colour */
+}
+
+/* Optional: style empty/persistent workspaces differently */
+#workspaces button.empty {
+    opacity: 0.5;
+}

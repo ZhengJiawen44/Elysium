@@ -1,0 +1,233 @@
+#!/bin/bash
+
+# Wofi Bluetooth Manager Script
+# Provides a GUI interface for bluetoothctl using wofi
+
+# Check if bluetoothctl is available
+if ! command -v bluetoothctl &>/dev/null; then
+  notify-send "Bluetooth Manager" "bluetoothctl not found. Please install bluez-utils."
+  exit 1
+fi
+
+# Check if wofi is available
+if ! command -v wofi &>/dev/null; then
+  notify-send "Bluetooth Manager" "wofi not found. Please install wofi."
+  exit 1
+fi
+
+# Function to get bluetooth power status
+get_power_status() {
+  bluetoothctl show | grep "Powered: yes" &>/dev/null && echo "on" || echo "off"
+}
+
+# Function to toggle bluetooth power
+toggle_power() {
+  if [ "$(get_power_status)" = "on" ]; then
+    bluetoothctl power off
+    notify-send "Bluetooth" "Bluetooth turned off"
+  else
+    bluetoothctl power on
+    notify-send "Bluetooth" "Bluetooth turned on"
+  fi
+}
+
+# Function to get paired devices
+get_paired_devices() {
+  bluetoothctl devices Paired | sed 's/Device //g'
+}
+
+# Function to get connected devices
+get_connected_devices() {
+  bluetoothctl devices Connected | sed 's/Device //g'
+}
+
+# Function to check if device is connected
+is_connected() {
+  local mac=$1
+  bluetoothctl info "$mac" | grep "Connected: yes" &>/dev/null
+}
+
+# Function to scan for devices
+scan_devices() {
+  notify-send "Bluetooth" "Scanning for devices..."
+  bluetoothctl --timeout 10 scan on &>/dev/null
+  bluetoothctl devices | sed 's/Device //g'
+}
+
+# Function to connect to device
+connect_device() {
+  local mac=$1
+  notify-send "Bluetooth" "Connecting to device..."
+  if bluetoothctl connect "$mac"; then
+    notify-send "Bluetooth" "Successfully connected"
+  else
+    notify-send "Bluetooth" "Failed to connect"
+  fi
+}
+
+# Function to disconnect device
+disconnect_device() {
+  local mac=$1
+  notify-send "Bluetooth" "Disconnecting device..."
+  if bluetoothctl disconnect "$mac"; then
+    notify-send "Bluetooth" "Successfully disconnected"
+  else
+    notify-send "Bluetooth" "Failed to disconnect"
+  fi
+}
+
+# Function to pair device
+pair_device() {
+  local mac=$1
+  notify-send "Bluetooth" "Pairing with device..."
+  if bluetoothctl pair "$mac"; then
+    bluetoothctl trust "$mac"
+    notify-send "Bluetooth" "Successfully paired"
+  else
+    notify-send "Bluetooth" "Failed to pair"
+  fi
+}
+
+# Function to remove device
+remove_device() {
+  local mac=$1
+  notify-send "Bluetooth" "Removing device..."
+  if bluetoothctl remove "$mac"; then
+    notify-send "Bluetooth" "Successfully removed"
+  else
+    notify-send "Bluetooth" "Failed to remove"
+  fi
+}
+
+# Main menu
+show_main_menu() {
+  local power_status=$(get_power_status)
+  local power_text="OFF"
+  [ "$power_status" = "on" ] && power_text="ON"
+
+  local options="Power: $power_text (toggle)\nPaired Devices\nScan & Connect\nRemove Device"
+
+  local choice=$(echo -e "$options" | wofi --dmenu --prompt "Bluetooth" --width 400 --height 250)
+
+  case "$choice" in
+  *"Power"*)
+    toggle_power
+    show_main_menu
+    ;;
+  *"Paired Devices"*)
+    show_paired_devices
+    ;;
+  *"Scan & Connect"*)
+    show_scan_menu
+    ;;
+  *"Remove Device"*)
+    show_remove_menu
+    ;;
+  esac
+}
+
+# Show paired devices menu
+show_paired_devices() {
+  local devices=$(get_paired_devices)
+
+  if [ -z "$devices" ]; then
+    notify-send "Bluetooth" "No paired devices found"
+    show_main_menu
+    return
+  fi
+
+  local device_list="< Back\n"
+  while IFS= read -r line; do
+    local mac=$(echo "$line" | awk '{print $1}')
+    local name=$(echo "$line" | cut -d' ' -f2-)
+    local status="[disconnected]"
+
+    if is_connected "$mac"; then
+      status="[connected]"
+    fi
+
+    device_list+="$status $name ($mac)\n"
+  done <<<"$devices"
+
+  local choice=$(echo -e "$device_list" | wofi --dmenu --prompt "Paired Devices" --width 500 --height 300)
+
+  if [ -z "$choice" ]; then
+    return
+  elif [[ "$choice" == "< Back" ]]; then
+    show_main_menu
+  else
+    local mac=$(echo "$choice" | grep -oP '\([0-9A-F:]+\)' | tr -d '()')
+
+    if is_connected "$mac"; then
+      disconnect_device "$mac"
+    else
+      connect_device "$mac"
+    fi
+    show_paired_devices
+  fi
+}
+
+# Show scan menu
+show_scan_menu() {
+  local devices=$(scan_devices)
+
+  if [ -z "$devices" ]; then
+    notify-send "Bluetooth" "No devices found"
+    show_main_menu
+    return
+  fi
+
+  local device_list="< Back\n"
+  while IFS= read -r line; do
+    local mac=$(echo "$line" | awk '{print $1}')
+    local name=$(echo "$line" | cut -d' ' -f2-)
+    device_list+="$name ($mac)\n"
+  done <<<"$devices"
+
+  local choice=$(echo -e "$device_list" | wofi --dmenu --prompt "Select Device to Pair" --width 500 --height 400)
+
+  if [ -z "$choice" ]; then
+    return
+  elif [[ "$choice" == "< Back" ]]; then
+    show_main_menu
+  else
+    local mac=$(echo "$choice" | grep -oP '\([0-9A-F:]+\)' | tr -d '()')
+    pair_device "$mac"
+    sleep 2
+    connect_device "$mac"
+    show_scan_menu
+  fi
+}
+
+# Show remove device menu
+show_remove_menu() {
+  local devices=$(get_paired_devices)
+
+  if [ -z "$devices" ]; then
+    notify-send "Bluetooth" "No paired devices found"
+    show_main_menu
+    return
+  fi
+
+  local device_list="< Back\n"
+  while IFS= read -r line; do
+    local mac=$(echo "$line" | awk '{print $1}')
+    local name=$(echo "$line" | cut -d' ' -f2-)
+    device_list+="$name ($mac)\n"
+  done <<<"$devices"
+
+  local choice=$(echo -e "$device_list" | wofi --dmenu --prompt "Select Device to Remove" --width 500 --height 300)
+
+  if [ -z "$choice" ]; then
+    return
+  elif [[ "$choice" == "< Back" ]]; then
+    show_main_menu
+  else
+    local mac=$(echo "$choice" | grep -oP '\([0-9A-F:]+\)' | tr -d '()')
+    remove_device "$mac"
+    show_remove_menu
+  fi
+}
+
+# Run main menu
+show_main_menu

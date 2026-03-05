@@ -1,0 +1,309 @@
+#!/bin/bash
+
+# Wofi WiFi Manager Script
+# Provides a GUI interface for NetworkManager using wofi
+
+# Check if nmcli is available
+if ! command -v nmcli &>/dev/null; then
+  notify-send "WiFi Manager" "nmcli not found. Please install NetworkManager."
+  exit 1
+fi
+
+# Check if wofi is available
+if ! command -v wofi &>/dev/null; then
+  notify-send "WiFi Manager" "wofi not found. Please install wofi."
+  exit 1
+fi
+
+# Function to check if WiFi is enabled
+get_wifi_status() {
+  nmcli radio wifi | grep -q "enabled" && echo "on" || echo "off"
+}
+
+# Function to toggle WiFi
+toggle_wifi() {
+  if [ "$(get_wifi_status)" = "on" ]; then
+    nmcli radio wifi off
+    notify-send "WiFi" "WiFi turned off"
+  else
+    nmcli radio wifi on
+    notify-send "WiFi" "WiFi turned on"
+  fi
+}
+
+# Function to get current connection
+get_current_connection() {
+  nmcli -t -f NAME connection show --active | grep -v "lo" | head -n 1
+}
+
+# Function to scan for networks
+scan_networks() {
+  nmcli device wifi rescan 2>/dev/null
+  sleep 2
+  nmcli -t -f SSID,SIGNAL,SECURITY device wifi list | tail -n +2 | sort -t: -k2 -rn
+}
+
+# Function to get saved connections
+get_saved_connections() {
+  nmcli -t -f NAME connection show | grep -v "lo"
+}
+
+# Function to connect to network
+connect_network() {
+  local ssid=$1
+  local password=$2
+
+  notify-send "WiFi" "Connecting to $ssid..."
+
+  # Check if connection already exists
+  if nmcli connection show "$ssid" &>/dev/null; then
+    # Connection exists, just bring it up
+    if [ -n "$password" ]; then
+      # Delete and recreate with new password
+      nmcli connection delete "$ssid" &>/dev/null
+      if nmcli device wifi connect "$ssid" password "$password" 2>&1 | grep -q "successfully"; then
+        notify-send "WiFi" "Successfully connected to $ssid"
+        return 0
+      else
+        notify-send "WiFi" "Failed to connect to $ssid. Check password."
+        return 1
+      fi
+    else
+      if nmcli connection up "$ssid" 2>&1 | grep -q "successfully"; then
+        notify-send "WiFi" "Successfully connected to $ssid"
+        return 0
+      else
+        notify-send "WiFi" "Failed to connect to $ssid"
+        return 1
+      fi
+    fi
+  else
+    # New connection
+    if [ -n "$password" ]; then
+      if nmcli device wifi connect "$ssid" password "$password" 2>&1 | grep -q "successfully"; then
+        notify-send "WiFi" "Successfully connected to $ssid"
+        return 0
+      else
+        notify-send "WiFi" "Failed to connect to $ssid. Check password."
+        return 1
+      fi
+    else
+      if nmcli device wifi connect "$ssid" 2>&1 | grep -q "successfully"; then
+        notify-send "WiFi" "Successfully connected to $ssid"
+        return 0
+      else
+        notify-send "WiFi" "Failed to connect to $ssid"
+        return 1
+      fi
+    fi
+  fi
+}
+
+# Function to disconnect current network
+disconnect_network() {
+  local connection=$(get_current_connection)
+  if [ -n "$connection" ]; then
+    notify-send "WiFi" "Disconnecting from $connection..."
+    if nmcli connection down "$connection"; then
+      notify-send "WiFi" "Successfully disconnected"
+    else
+      notify-send "WiFi" "Failed to disconnect"
+    fi
+  else
+    notify-send "WiFi" "No active connection"
+  fi
+}
+
+# Function to forget network
+forget_network() {
+  local connection=$1
+  notify-send "WiFi" "Forgetting network $connection..."
+  if nmcli connection delete "$connection"; then
+    notify-send "WiFi" "Successfully forgot $connection"
+  else
+    notify-send "WiFi" "Failed to forget $connection"
+  fi
+}
+
+# Function to prompt for password
+prompt_password() {
+  local ssid=$1
+  wofi --dmenu --prompt "Password for $ssid" --password --width 400 --height 100
+}
+
+# Main menu
+show_main_menu() {
+  local wifi_status=$(get_wifi_status)
+  local wifi_text="OFF"
+  [ "$wifi_status" = "on" ] && wifi_text="ON"
+
+  local current=$(get_current_connection)
+  local current_text="Not Connected"
+  [ -n "$current" ] && current_text="Connected: $current"
+
+  local options="WiFi: $wifi_text (toggle)\n$current_text\nAvailable Networks\nSaved Networks\nDisconnect\nForget Network"
+
+  local choice=$(echo -e "$options" | wofi --dmenu --prompt "WiFi Manager" --width 400 --height 300)
+
+  case "$choice" in
+  *"WiFi:"*)
+    toggle_wifi
+    show_main_menu
+    ;;
+  *"Connected:"*)
+    show_main_menu
+    ;;
+  *"Available Networks"*)
+    show_available_networks
+    ;;
+  *"Saved Networks"*)
+    show_saved_networks
+    ;;
+  *"Disconnect"*)
+    disconnect_network
+    show_main_menu
+    ;;
+  *"Forget Network"*)
+    show_forget_menu
+    ;;
+  *) ;;
+  esac
+}
+
+# Show available networks
+show_available_networks() {
+  if [ "$(get_wifi_status)" = "off" ]; then
+    notify-send "WiFi" "WiFi is turned off"
+    show_main_menu
+    return
+  fi
+
+  notify-send "WiFi" "Scanning for networks..."
+  local networks=$(scan_networks)
+
+  if [ -z "$networks" ]; then
+    notify-send "WiFi" "No networks found"
+    show_main_menu
+    return
+  fi
+
+  local network_list="< Back\n"
+  local current=$(get_current_connection)
+
+  while IFS=':' read -r ssid signal security; do
+    # Skip empty SSID
+    [ -z "$ssid" ] || [ "$ssid" = "--" ] && continue
+
+    local status=""
+    if [ "$ssid" = "$current" ]; then
+      status="[connected] "
+    fi
+
+    local sec_text=""
+    if [ "$security" != "--" ] && [ -n "$security" ]; then
+      sec_text=" [secured]"
+    fi
+
+    network_list+="${status}${ssid} (${signal}%)${sec_text}\n"
+  done <<<"$networks"
+
+  local choice=$(echo -e "$network_list" | wofi --dmenu --prompt "Available Networks" --width 500 --height 400)
+
+  if [ -z "$choice" ]; then
+    return
+  elif [[ "$choice" == "< Back" ]]; then
+    show_main_menu
+  else
+    # Extract SSID
+    local ssid=$(echo "$choice" | sed 's/\[connected\] //g' | sed 's/ ([0-9]*%).*//g')
+
+    # Check if network is secured
+    if echo "$choice" | grep -q "\[secured\]"; then
+      local password=$(prompt_password "$ssid")
+      if [ -n "$password" ]; then
+        connect_network "$ssid" "$password"
+      fi
+    else
+      connect_network "$ssid"
+    fi
+
+    show_available_networks
+  fi
+}
+
+# Show saved networks
+show_saved_networks() {
+  local connections=$(get_saved_connections)
+
+  if [ -z "$connections" ]; then
+    notify-send "WiFi" "No saved networks found"
+    show_main_menu
+    return
+  fi
+
+  local network_list="< Back\n"
+  local current=$(get_current_connection)
+
+  while IFS= read -r connection; do
+    local status=""
+    if [ "$connection" = "$current" ]; then
+      status="[connected] "
+    fi
+    network_list+="${status}${connection}\n"
+  done <<<"$connections"
+
+  local choice=$(echo -e "$network_list" | wofi --dmenu --prompt "Saved Networks" --width 500 --height 400)
+
+  if [ -z "$choice" ]; then
+    return
+  elif [[ "$choice" == "< Back" ]]; then
+    show_main_menu
+  else
+    local connection=$(echo "$choice" | sed 's/\[connected\] //g')
+
+    # Check if already connected
+    if [ "$connection" = "$current" ]; then
+      notify-send "WiFi" "Already connected to $connection"
+    else
+      notify-send "WiFi" "Connecting to $connection..."
+      if nmcli connection up "$connection"; then
+        notify-send "WiFi" "Successfully connected to $connection"
+      else
+        notify-send "WiFi" "Failed to connect to $connection"
+      fi
+    fi
+
+    show_saved_networks
+  fi
+}
+
+# Show forget network menu
+show_forget_menu() {
+  local connections=$(get_saved_connections)
+
+  if [ -z "$connections" ]; then
+    notify-send "WiFi" "No saved networks found"
+    show_main_menu
+    return
+  fi
+
+  local network_list="< Back\n"
+
+  while IFS= read -r connection; do
+    network_list+="${connection}\n"
+  done <<<"$connections"
+
+  local choice=$(echo -e "$network_list" | wofi --dmenu --prompt "Select Network to Forget" --width 500 --height 400)
+
+  if [ -z "$choice" ]; then
+    return
+  elif [[ "$choice" == "< Back" ]]; then
+    show_main_menu
+  else
+    forget_network "$choice"
+    show_forget_menu
+  fi
+}
+
+# Run main menu
+show_main_menu

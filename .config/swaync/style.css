@@ -1,0 +1,107 @@
+@import '../themes/global.css';
+@define-color background-alt  alpha(@color1, .4);
+@define-color selected        @color6;
+@define-color hover           alpha(@selected, .1);
+@define-color urgent          @color2;
+
+* {
+	font-family: "JetBrainsMono", monospace;
+}
+.widget-notification{
+	color:black;
+	border: 2px solid white;
+}
+.notification-content{
+	padding:10px;
+}
+.summary{
+	font-size:small;
+}
+
+.body{
+	margin-top:10px;
+	font-size:small;
+}
+.time{
+	font-size: x-small;
+}
+.message{
+	font-size: small;
+}
+
+.control-center {
+	padding: 20px 0px;
+}
+
+.widget-title{
+	font-size:large;
+}
+
+.widget-mpris-player{
+	margin-top:0px;
+	margin-bottom:0px;
+}
+.widget-dnd{
+	padding:0px 20px;
+	font-size:medium;
+}
+.widget-title{
+	padding:0px 20px;
+}
+.widget-title button {
+	font-size: x-small;
+  background: @background-alt;
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.widget-title button:hover {
+  background-color: @accent-olive;
+  color:@background;
+}
+
+.widget-title button:active {
+  background-color: @selected;
+}
+.widget-dnd > switch slider {
+  border-radius: 6px;
+}
+.widget-dnd>switch {
+  background: @accent-olive;
+  padding: 3px 3px;
+  border-radius: 6px;
+}
+.widget-dnd>switch:checked {
+  background: none;
+}
+switch slider {
+  min-width: 15px;
+  min-height: 15px;
+}
+
+.widget-backlight{
+  border-radius: 10px 10px 0px 0px;
+  padding-top:10px;
+  padding-bottom: 0px;
+}
+.widget-volume{
+  border-radius: 0px 0px 10px 10px;
+  padding-bottom: 10px;
+}
+.widget-volume,
+.widget-backlight{
+  margin-top:0px;
+  margin-bottom:0px;
+}
+.widget-volume slider,
+.widget-backlight slider {
+  border-radius: 8px;
+}
+.widget-volume trough,
+.widget-backlight trough{
+  min-height: 3px;
+}
+.widget-volume trough highlight,
+.widget-backlight trough highlight{
+  background-color: @accent-olive;
+}
